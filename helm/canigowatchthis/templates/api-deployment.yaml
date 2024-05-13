@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-{{ .Values.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: api-{{ .Values.name }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: api-{{ .Values.name }}
+  template:
+    metadata:
+      labels:
+        app: api-{{ .Values.name }}
+    spec:
+      containers:
+      - name: api-{{ .Values.name }}
+        image: api:{{ .Values.global.image.tag | default .Values.api.image.tag }}
+        imagePullPolicy: IfNotPresent
+        env:
+          - name: PORT
+            value: "{{ .Values.api.port }}"
+          - name: IGNORE_OLD_GAMES
+            value: "{{ .Values.api.ignoreOldGames }}"
+        ports:
+        - containerPort: {{ .Values.api.port }}

@@ -1,0 +1,9 @@
+apiVersion: v2
+name: canigowatchthis
+description: Webapp to tell me if I can watch a game or not
+
+type: application
+
+version: 0.1.0
+
+appVersion: "0.1.0"

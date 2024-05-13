@@ -1,0 +1,20 @@
+name: canigowatchthis
+namespace: canigowatchthis
+
+global:
+  image:
+    tag: ~
+
+api:
+  image:
+    tag: 0.1.0
+  port: 8080
+  ignoreOldGames: true
+  teams:
+    - "TODO"
+
+notifier:
+  image:
+    tag: 0.1.0
+  enabled: true
+  cron: "* * * * *"

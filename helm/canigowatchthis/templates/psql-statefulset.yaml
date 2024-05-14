@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+spec:
+  selector:
+    matchLabels:
+      name: postgres
+  template:
+    metadata:
+      labels:
+        name: postgres
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:12.19
+        env:
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgress-password
+              key: postgres_password
+        ports:
+        - containerPort: 5432
+        volumeMounts:
+        - name: init-schema
+          mountPath: /docker-entrypoint-initdb.d
+        - name: pg-data
+          mountPath: /data/postgresql
+      volumes:
+      - name: init-schema
+        configMap:
+          name: init-schema
+          items:
+            - key: init-schema.sql
+              path: init-schema.sql
+  volumeClaimTemplates:
+  - metadata:
+      name: pg-data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 10Gi

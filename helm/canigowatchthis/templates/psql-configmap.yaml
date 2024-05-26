@@ -1,3 +1,4 @@
+{{ if .Values.notifier.enabled }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -12,7 +13,7 @@ data:
         id SERIAL PRIMARY KEY,
         game_id TEXT NOT NULL,
         league TEXT NOT NULL,
-        time TIME NOT NULL,
+        start_time TIMESTAMP NOT NULL,
         UNIQUE (game_id, league)
     );
 
@@ -21,3 +22,4 @@ data:
         mail TEXT NOT NULL,
         CONSTRAINT subscriptions_fk FOREIGN KEY (id) REFERENCES games (id)
     );
+{{ end }}

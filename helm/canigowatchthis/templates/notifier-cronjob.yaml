@@ -1,0 +1,25 @@
+{{ if .Values.notifier.enabled }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: notifier-{{ .Values.name }}
+spec:
+  schedule: "{{ .Values.notifier.cron }}"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: notifier-{{ .Values.name }}
+            image: notifier:{{ .Values.global.image.tag | default .Values.notifier.image.tag }}
+            imagePullPolicy: IfNotPresent
+            env:
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgress-password
+                  key: postgres_password
+            - name: POSTGRES_URL
+              value: postgres.{{ .Values.namespace }}
+          restartPolicy: OnFailure
+{{ end }}

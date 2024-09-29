@@ -22,7 +22,6 @@ const (
 	Playoff   GameType = 3
 )
 
-// TODO: Make config
 var teams = [...]string{
 	"det",
 	"bos",
@@ -32,7 +31,7 @@ var teams = [...]string{
 	"phi",
 	"tor",
 	"car",
-	"ari",
+	"uta",
 	"cgy",
 	"mtl",
 	"wsh",

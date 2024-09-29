@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/rs/zerolog/log"
@@ -111,58 +112,74 @@ func ProcessRequest(w http.ResponseWriter, r *http.Request) {
 	response := ResponseMessage{
 		Games: []nhlapi.Game{},
 	}
+	gamesMutex := sync.Mutex{}
+
+	now := time.Now().UTC()
+
+	wg := sync.WaitGroup{}
+	wg.Add(len(schedule.Games))
 
 	for _, game := range schedule.Games {
-		gameDateUTC, err := time.Parse(time.RFC3339, game.StartTimeUTC)
-		if err != nil {
-			log.Error().Stack().Err(err).Msgf("failed to parse %s", game.StartTimeUTC)
-			continue
-		}
+		go func(game *nhlapi.Game) {
+			defer func() {
+				wg.Done()
+			}()
 
-		if config.Config.IgnoreOldGames && gameDateUTC.Before(time.Now().UTC()) {
-			continue
-		}
-
-		gameDateUserTimezone := gameDateUTC.In(location)
-		weekday := convertWeekday(gameDateUserTimezone.Weekday())
-
-		// If the specific weekday has not been provided nor the 'Any' weekday, skip. Otherwise use the 'Any' span.
-		if !slices.Contains(maps.Keys(spans), weekday) {
-			if !slices.Contains(maps.Keys(spans), Any) {
-				continue
+			gameDateUTC, err := time.Parse(time.RFC3339, game.StartTimeUTC)
+			if err != nil {
+				log.Error().Stack().Err(err).Msgf("failed to parse %s", game.StartTimeUTC)
+				return
 			}
 
-			weekday = Any
-		}
+			if config.Config.IgnoreOldGames && gameDateUTC.Before(now) {
+				return
+			}
 
-		span := spans[weekday]
+			gameDateUserTimezone := gameDateUTC.In(location)
+			weekday := convertWeekday(gameDateUserTimezone.Weekday())
 
-		lower := time.Date(
-			gameDateUserTimezone.Year(),
-			gameDateUserTimezone.Month(),
-			gameDateUserTimezone.Day(),
-			span.Start,
-			0,
-			0,
-			0,
-			location,
-		)
+			// If the specific weekday has not been provided nor the 'Any' weekday, skip. Otherwise use the 'Any' span.
+			if !slices.Contains(maps.Keys(spans), weekday) {
+				if !slices.Contains(maps.Keys(spans), Any) {
+					return
+				}
 
-		higher := time.Date(
-			gameDateUserTimezone.Year(),
-			gameDateUserTimezone.Month(),
-			gameDateUserTimezone.Day(),
-			span.End,
-			0,
-			0,
-			0,
-			location,
-		)
+				weekday = Any
+			}
 
-		if inSpan(gameDateUserTimezone, lower, higher) {
-			response.Games = append(response.Games, game)
-		}
+			span := spans[weekday]
+
+			lower := time.Date(
+				gameDateUserTimezone.Year(),
+				gameDateUserTimezone.Month(),
+				gameDateUserTimezone.Day(),
+				span.Start,
+				0,
+				0,
+				0,
+				location,
+			)
+
+			higher := time.Date(
+				gameDateUserTimezone.Year(),
+				gameDateUserTimezone.Month(),
+				gameDateUserTimezone.Day(),
+				span.End,
+				0,
+				0,
+				0,
+				location,
+			)
+
+			if inSpan(gameDateUserTimezone, lower, higher) {
+				gamesMutex.Lock()
+				response.Games = append(response.Games, *game)
+				gamesMutex.Unlock()
+			}
+		}(&game)
 	}
+
+	wg.Wait()
 
 	w.Header().Set("Content-Type", "application/json")
 
@@ -176,7 +193,7 @@ func ProcessRequest(w http.ResponseWriter, r *http.Request) {
 	response.StatusCode = status
 	err = json.NewEncoder(w).Encode(response)
 	if err != nil {
-		log.Error().Stack().Err(err).Interface("message", response).Msg("failed to encode error message")
+		log.Error().Stack().Err(err).Interface("message", response).Msg("failed to encode response")
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(`{"statusCode": 500, "message": "Internal Server Error"}`))
 	}

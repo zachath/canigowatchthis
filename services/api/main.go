@@ -23,10 +23,20 @@ func init() {
 	config.LoadConfig()
 }
 
+// TODO metrics?
+func LogRequest(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Info().Str("method", r.Method).Str("address", r.RemoteAddr).Msg("received a request")
+
+		next.ServeHTTP(w, r)
+	})
+}
+
 func main() {
 	r := mux.NewRouter()
 
-	r.HandleFunc("/gui", nil) //TODO: rm
+	r.Use(LogRequest)
+
 	r.HandleFunc("/api", InputValidation(ProcessRequest)).Methods(http.MethodPost)
 	r.Handle("/metrics", promhttp.Handler()) // TODO: This should not be exposed externaly.
 
